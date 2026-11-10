@@ -13,6 +13,7 @@ import { useSettings } from '@/settings/SettingsContext';
 import type { ThemeMode } from '@/settings/storage';
 import { useTheme, type Theme } from '@/theme';
 import { confirmAction } from '@/utils/confirm';
+import { useStudy } from '@/context/StudyContext';
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; icon: 'sunny-outline' | 'moon-outline' }[] = [
   { id: 'light', label: 'Light', icon: 'sunny-outline' },
@@ -24,6 +25,7 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { settings, update, reset } = useSettings();
+  const { gradingMode, setGradingMode } = useStudy();
   const [nicknameDraft, setNicknameDraft] = useState(settings.nickname);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
@@ -165,6 +167,77 @@ export default function SettingsScreen() {
         </View>
       </Section>
 
+      <Section title="Grading System" theme={theme}>
+        <Text style={{ color: theme.textSecondary, fontSize: 13, marginBottom: 12 }}>
+          Choose how grades, GPAs, and passing criteria are calculated and displayed throughout the app.
+        </Text>
+
+        {/* 1. Elementary / High School Percentage Option */}
+        <SmoothPressable
+          accessibilityRole="radio"
+          accessibilityLabel="Elementary / High School Percentage Grading"
+          accessibilityState={{ checked: gradingMode === 'percentage' }}
+          onPress={() => void setGradingMode('percentage')}
+          style={[
+            styles.gradingCard,
+            {
+              backgroundColor: gradingMode === 'percentage' ? theme.primary + '14' : theme.background,
+              borderColor: gradingMode === 'percentage' ? theme.primary : theme.border,
+            },
+          ]}
+        >
+          <View style={styles.gradingCardHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons
+                name={gradingMode === 'percentage' ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={gradingMode === 'percentage' ? theme.primary : theme.textSecondary}
+              />
+              <Text style={[styles.gradingTitle, { color: theme.text }]}>Elementary / High School Percentage Grading</Text>
+            </View>
+            <View style={[styles.badgePill, { backgroundColor: '#10B98120' }]}>
+              <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '700' }}>0% – 100%</Text>
+            </View>
+          </View>
+          <Text style={[styles.gradingDesc, { color: theme.textSecondary }]}>
+            Displays subject grades and assessment results as percentages (e.g. 90%, 87%). Passing threshold is 75.0% or higher. Configurable category weights with raw score preservation.
+          </Text>
+        </SmoothPressable>
+
+        {/* 2. College Numerical Option */}
+        <SmoothPressable
+          accessibilityRole="radio"
+          accessibilityLabel="College Numerical Grading"
+          accessibilityState={{ checked: gradingMode === 'college' }}
+          onPress={() => void setGradingMode('college')}
+          style={[
+            styles.gradingCard,
+            {
+              backgroundColor: gradingMode === 'college' ? theme.primary + '14' : theme.background,
+              borderColor: gradingMode === 'college' ? theme.primary : theme.border,
+              marginTop: 10,
+            },
+          ]}
+        >
+          <View style={styles.gradingCardHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons
+                name={gradingMode === 'college' ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={gradingMode === 'college' ? theme.primary : theme.textSecondary}
+              />
+              <Text style={[styles.gradingTitle, { color: theme.text }]}>College Numerical Grading</Text>
+            </View>
+            <View style={[styles.badgePill, { backgroundColor: '#4F46E520' }]}>
+              <Text style={{ color: '#4F46E5', fontSize: 11, fontWeight: '700' }}>1.00 – 5.00 Scale</Text>
+            </View>
+          </View>
+          <Text style={[styles.gradingDesc, { color: theme.textSecondary }]}>
+            Philippine college numerical format: 1.0 is highest grade, 1.1–2.9 below highest, 3.0 passing threshold, and 3.1–5.0 failing. Calculated with formula G = -4(R/T) + 5.
+          </Text>
+        </SmoothPressable>
+      </Section>
+
       <Section title="Data" theme={theme}>
         <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
           Save your chat and settings to a file, or restore them later. Your
@@ -258,4 +331,30 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   linkRow: { minHeight: 48, alignItems: 'center', marginTop: 5, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 10 },
+  gradingCard: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+  },
+  gradingCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  gradingTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  badgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  gradingDesc: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+    marginLeft: 28,
+  },
 });

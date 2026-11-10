@@ -21,13 +21,9 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   return (
     <Tabs
-      // Floating pill (Home + empty feature slots) with a separate Chat
-      // button; see src/components/FloatingTabBar.tsx.
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        // No header, so keep content below the status bar; leave room at the
-        // bottom so the floating bar doesn't cover the screen's content.
         sceneStyle: {
           backgroundColor: theme.background,
           paddingTop: insets.top,
@@ -37,14 +33,51 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }}
+        options={{
+          title: 'Home',
+          tabBarIcon: tabIcon('home', 'home-outline'),
+        }}
+      />
+      <Tabs.Screen
+        name="tasks"
+        options={{
+          title: 'Tasks',
+          tabBarIcon: tabIcon('checkbox', 'checkbox-outline'),
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: tabIcon('time', 'time-outline'),
+        }}
+      />
+      <Tabs.Screen
+        name="grades"
+        options={{
+          title: 'Grades',
+          tabBarIcon: tabIcon('school', 'school-outline'),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: tabIcon('person', 'person-outline'),
+        }}
       />
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat',
+          title: 'AI Tutor',
           sceneStyle: { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: insets.bottom },
-          tabBarIcon: tabIcon('chatbubble-ellipses', 'chatbubble-ellipses-outline'),
+          tabBarIcon: tabIcon('sparkles', 'sparkles-outline'),
         }}
       />
     </Tabs>

@@ -1,3 +1,5 @@
+export type MessageType = 'default' | 'success' | 'error' | 'info' | 'warning';
+
 export interface Confirmation {
   id: number;
   title: string;
@@ -6,6 +8,7 @@ export interface Confirmation {
   onConfirm: () => void | Promise<void>;
   cancelable: boolean;
   destructive: boolean;
+  type: MessageType;
 }
 
 let nextId = 0;
@@ -26,11 +29,31 @@ export function dismissConfirmation(id: number) {
 
 /** Every app confirmation uses the same accessible, blurred popup. */
 export function confirmAction(title: string, message: string, confirmLabel: string, onConfirm: () => void | Promise<void>): void {
-  queue.push({ id: ++nextId, title, message, confirmLabel, onConfirm, cancelable: true, destructive: /^(clear|delete|reset)$/i.test(confirmLabel) });
+  queue.push({ id: ++nextId, title, message, confirmLabel, onConfirm, cancelable: true, destructive: /^(clear|delete|reset)$/i.test(confirmLabel), type: 'default' });
   notify();
 }
 
-export function showMessage(title: string, message: string): void {
-  queue.push({ id: ++nextId, title, message, confirmLabel: 'OK', onConfirm: () => {}, cancelable: false, destructive: false });
+export function showMessage(title: string, message: string, type: MessageType = 'default'): void {
+  queue.push({ id: ++nextId, title, message, confirmLabel: 'OK', onConfirm: () => {}, cancelable: false, destructive: false, type });
   notify();
+}
+
+/** Shortcut for success toasts */
+export function showSuccess(title: string, message: string): void {
+  showMessage(title, message, 'success');
+}
+
+/** Shortcut for informational toasts */
+export function showInfo(title: string, message: string): void {
+  showMessage(title, message, 'info');
+}
+
+/** Shortcut for error / failure toasts */
+export function showError(title: string, message: string): void {
+  showMessage(title, message, 'error');
+}
+
+/** Shortcut for warning toasts */
+export function showWarning(title: string, message: string): void {
+  showMessage(title, message, 'warning');
 }

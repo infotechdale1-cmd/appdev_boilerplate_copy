@@ -6,16 +6,29 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "env": { "SKIP_IOS_FRAMEWORK_DOWNLOAD": "1" }
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "SKIP_IOS_FRAMEWORK_DOWNLOAD": "1"
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "env": { "SKIP_IOS_FRAMEWORK_DOWNLOAD": "1" }
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "SKIP_IOS_FRAMEWORK_DOWNLOAD": "1"
+      },
+      "channel": "preview"
     },
     "production": {
-      "env": { "SKIP_IOS_FRAMEWORK_DOWNLOAD": "1" }
+      "env": {
+        "SKIP_IOS_FRAMEWORK_DOWNLOAD": "1"
+      },
+      "channel": "production"
     }
   }
 }

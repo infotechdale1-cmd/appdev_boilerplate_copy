@@ -6,6 +6,32 @@ import type { ChatMessage, ChatProvider } from './types';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
+class GeminiTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Gemini request timed out after ${Math.ceil(timeoutMs / 1000)} seconds.`);
+    this.name = 'GeminiTimeoutError';
+  }
+}
+
+async function withRequestTimeout<T>(
+  request: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await request(controller.signal);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new GeminiTimeoutError(timeoutMs);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 interface GeminiProviderOptions {
   apiKey: string;
   model: string;
@@ -24,6 +50,7 @@ class HttpError extends Error {
 }
 
 function friendlyError(error: unknown, model?: string): Error {
+  if (error instanceof GeminiTimeoutError) return error;
   if (error instanceof HttpError) {
     if (error.status === 429) return new Error('Available cloud models are limited. Please try again later.');
     if ([500, 502, 503, 504].includes(error.status)) return new Error('Cloud AI is busy. Please try again shortly.');
@@ -83,9 +110,16 @@ export async function listGeminiModels(apiKey: string): Promise<string[]> {
   do {
     const url =
       `${API_BASE}/models` + (pageToken ? `?pageToken=${pageToken}` : '');
-    const res = await fetch(url, { headers: { 'x-goog-api-key': apiKey } });
-    await throwForBadResponse(res);
-    const body = await res.json();
+    const body = await withRequestTimeout(async (signal) => {
+      const res = await fetch(url, {
+        headers: { 'x-goog-api-key': apiKey },
+        signal,
+      });
+      await throwForBadResponse(res);
+      return res.json();
+    },
+      15_000
+    );
     for (const m of body.models ?? []) {
       if ((m.supportedGenerationMethods ?? []).includes('generateContent')) {
         const name = String(m.name).replace(/^models\//, '');
@@ -234,8 +268,10 @@ function markUnavailable(apiKey: string, model: string, error: HttpError) {
 }
 
 async function candidateModels(apiKey: string, chosen: string, history: ChatMessage[]): Promise<string[]> {
-  const catalog = await modelListFor(apiKey);
-  const available = catalog ?? [];
+  const cached = modelListCache.get(apiKey);
+  const catalog = cached && cached.expires > Date.now() ? cached.models : null;
+  if (!catalog) void modelListFor(apiKey);
+  const available = catalog ?? MULTIMODAL_CHAT_MODELS;
   const media = history.some((message) => message.imageUri || message.audioUri);
   const tiers = modelTiers(available);
   const ranked = [...available].sort((a, b) => {
@@ -246,7 +282,7 @@ async function candidateModels(apiKey: string, chosen: string, history: ChatMess
   if (!catalog) proposed.push(FALLBACK_MODEL);
   const seen = new Set<string>();
   return proposed.filter((candidate, index) => {
-    if (catalog && !available.includes(candidate) && !(index === 0 && chosen !== AUTO_MODEL)) return false;
+    if (catalog && !catalog.includes(candidate) && !(index === 0 && chosen !== AUTO_MODEL)) return false;
     if (NON_CHAT_MODEL.test(candidate) || media && !/^gemini-/.test(candidate)) return false;
     // The generic latest aliases are redundant when that concrete family exists.
     if (candidate !== chosen && /-latest$/.test(candidate)) {
@@ -371,4 +407,178 @@ export function createGeminiProvider({ apiKey, model }: GeminiProviderOptions): 
       throw new Error('No compatible cloud model is available for this message.');
     },
   };
+}
+
+export const MULTIMODAL_CHAT_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-2.5-pro',
+  'gemini-1.5-pro',
+];
+
+export function isSupportedMultimodalModel(modelName: string): boolean {
+  if (!modelName || modelName === AUTO_MODEL) return false;
+  if (NON_CHAT_MODEL.test(modelName)) return false;
+  if (/banana|imagen|image-generation|veo|whisper|tts|speech/i.test(modelName)) return false;
+  return /^gemini-/i.test(modelName);
+}
+
+export interface GenerateContentOptions {
+  prompt: string;
+  imageBase64?: string;
+  imageMimeType?: string;
+  apiKey?: string;
+  model?: string;
+  timeoutMs?: number;
+}
+
+/** One-shot multimodal content generator using Gemini REST API. */
+export async function generateContent(options: GenerateContentOptions): Promise<{ text: string; modelUsed: string }> {
+  let key = options.apiKey?.trim();
+  let configuredModel: string | undefined;
+
+  if (!key || !options.model) {
+    try {
+      const { loadSettings } = await import('@/settings/storage');
+      const settings = await loadSettings();
+      if (!key) key = settings.geminiApiKey?.trim();
+      if (!options.model) configuredModel = settings.geminiModel?.trim();
+    } catch {
+      // ignore
+    }
+  }
+  if (!key && typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_GEMINI_API_KEY) {
+    key = process.env.EXPO_PUBLIC_GEMINI_API_KEY.trim();
+  }
+  if (!key) {
+    throw new Error('Gemini API key is not configured. Please configure your API key in AI Settings.');
+  }
+
+  const configured = (options.model || configuredModel)?.trim();
+  const requestedModel =
+    configured && !['auto', 'undefined', 'null'].includes(configured.toLowerCase())
+      ? configured
+      : undefined;
+
+  let cachedModels = modelListCache.get(key);
+  if ((!cachedModels || cachedModels.expires <= Date.now()) && configured?.toLowerCase() === AUTO_MODEL) {
+    const discovered = await modelListFor(key);
+    if (discovered) cachedModels = modelListCache.get(key);
+  }
+  let availableModels =
+    cachedModels && cachedModels.expires > Date.now()
+      ? cachedModels.models.filter(isSupportedMultimodalModel)
+      : MULTIMODAL_CHAT_MODELS;
+  if (!cachedModels || cachedModels.expires <= Date.now()) void modelListFor(key);
+  if (availableModels.length === 0) availableModels = MULTIMODAL_CHAT_MODELS;
+
+  const preferredModel = pickBestModel(availableModels);
+  const firstModel =
+    requestedModel && isSupportedMultimodalModel(requestedModel)
+      ? requestedModel
+      : preferredModel;
+  const discoveredFallbacks = [...availableModels]
+    .filter((model) => model !== firstModel)
+    .sort((a, b) => versionOf(b) - versionOf(a));
+  const modelCandidates = [
+    ...(firstModel ? [firstModel] : []),
+    ...discoveredFallbacks,
+    ...MULTIMODAL_CHAT_MODELS,
+  ].filter((model, index, models) => models.indexOf(model) === index);
+
+  const parts: Record<string, unknown>[] = [];
+  if (options.imageBase64) {
+    parts.push({
+      inlineData: {
+        mimeType: options.imageMimeType || 'image/jpeg',
+        data: options.imageBase64,
+      },
+    });
+  }
+  parts.push({ text: options.prompt });
+
+  const body = {
+    contents: [{ role: 'user', parts }],
+    generationConfig: {
+      temperature: 0.1,
+    },
+  };
+
+  let lastError: unknown;
+  let lastModel: string | undefined;
+  candidateLoop: for (const candidate of modelCandidates) {
+    let attempt = 0;
+    while (attempt < 2) {
+      attempt++;
+      try {
+        const url = `${API_BASE}/models/${candidate}:generateContent`;
+        const result = await withRequestTimeout(async (signal) => {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': key,
+            },
+            body: JSON.stringify(body),
+            signal,
+          });
+          if (!res.ok) throw await toHttpError(res);
+          const json = await res.json();
+          return {
+            text: json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '',
+            modelUsed: candidate,
+          };
+        }, options.timeoutMs ?? 60_000);
+        return result;
+      } catch (err) {
+        lastError = err;
+        lastModel = candidate;
+        if (err instanceof HttpError) {
+          if (err.status === 404) modelListCache.delete(key);
+          if (
+            err.status === 404 ||
+            err.status === 400 &&
+              /model.*(?:not found|not supported|not available)|(?:not found|not supported).*model|does not support.*(?:image|generatecontent)/i.test(
+                err.apiMessage ?? ''
+              )
+          ) {
+            continue candidateLoop;
+          }
+          if (err.status === 401 || err.status === 403) {
+            throw new Error('Invalid Gemini API key. Please check your API key in AI Settings.');
+          }
+          if (err.status === 429) {
+            markUnavailable(key, candidate, err);
+            if (cooldowns.get(key)?.has('*')) {
+              throw new Error('Gemini API project quota is exhausted. Please wait for the quota to reset or check your Google AI Studio limits.');
+            }
+            continue candidateLoop;
+          }
+          if ([500, 502, 503, 504].includes(err.status)) {
+            if (attempt < 2) {
+              const retryDelay = Number.isFinite(err.retryAfterMs)
+                ? Math.min(Math.max(err.retryAfterMs!, 500), 2_000)
+                : 800;
+              await new Promise((resolve) => setTimeout(resolve, retryDelay));
+              continue;
+            }
+            break;
+          }
+        }
+        throw friendlyError(err, candidate);
+      }
+    }
+  }
+
+  if (lastError instanceof HttpError && lastError.status === 404) {
+    throw new Error('No supported Gemini image-analysis model is available for this API key. Check model access in AI Settings.');
+  }
+  if (lastError instanceof HttpError && lastError.status === 429) {
+    throw new Error('Gemini API quota or rate limit exceeded for the available models. Please wait for the quota to reset before trying again.');
+  }
+
+  throw lastError
+    ? friendlyError(lastError, lastModel)
+    : new Error('No Gemini models are available for this API key. Check Chat settings and try again.');
 }

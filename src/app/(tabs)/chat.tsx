@@ -57,12 +57,12 @@ const id = 'main';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-/** Starter prompts shown on an empty chat. Edit these for your app. */
+/** Starter prompts shown on an empty chat. Tailored to StudyTrack academic coursework. */
 export const SUGGESTIONS: { icon: IconName; label: string; prompt: string }[] = [
-  { icon: 'bulb-outline', label: 'Explain a topic', prompt: 'Explain photosynthesis in simple terms.' },
-  { icon: 'help-circle-outline', label: 'Quiz me', prompt: 'Give me a 5-question quiz about world geography.' },
-  { icon: 'calendar-outline', label: 'Plan my study week', prompt: 'Help me make a study plan for this week.' },
-  { icon: 'create-outline', label: 'Improve my writing', prompt: 'Help me improve this paragraph: ' },
+  { icon: 'bulb-outline', label: 'Explain a Concept', prompt: 'Explain Calculus multivariable integrals with a clear student example.' },
+  { icon: 'help-circle-outline', label: 'Quiz Me', prompt: 'Give me a 4-question multiple choice quiz on Data Structures & Algorithms.' },
+  { icon: 'calendar-outline', label: 'Exam Study Plan', prompt: 'Help me plan a 5-day study revision timetable for upcoming midterms.' },
+  { icon: 'create-outline', label: 'Essay Feedback', prompt: 'Critique and improve this academic essay thesis statement: ' },
 ];
 
 export default function ChatScreen() {
@@ -396,7 +396,7 @@ export default function ChatScreen() {
       <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
         <IconButton icon="chevron-back" label="Back to Home" onPress={() => router.navigate('/' as Href)} />
         <View style={styles.flex}>
-          <Text style={[styles.title, { color: theme.text }]}>AI Chat</Text>
+          <Text style={[styles.title, { color: theme.text }]}>StudyTrack AI Tutor</Text>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <Text numberOfLines={1} style={{ color: theme.textSecondary, fontSize: 12 }}>
