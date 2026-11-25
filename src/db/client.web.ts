@@ -205,6 +205,9 @@ const MIGRATIONS: string[] = [
     WHERE username IS NULL OR username = '';
   CREATE INDEX IF NOT EXISTS idx_users_username ON users (username COLLATE NOCASE);
   `,
+  `
+  ALTER TABLE users ADD COLUMN avatar_uri TEXT;
+  `,
 ];
 
 class WebSQLiteDatabase {

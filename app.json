@@ -37,9 +37,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#CEC7ED",
           "image": "./assets/images/mascot-transparent.png",
-          "imageWidth": 76
+          "imageWidth": 220,
+          "resizeMode": "contain"
         }
       ],
       "expo-sqlite",

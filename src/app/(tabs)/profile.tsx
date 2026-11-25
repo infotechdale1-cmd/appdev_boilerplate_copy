@@ -17,6 +17,7 @@ import { useStudy } from '@/context/StudyContext';
 import { useSettings } from '@/settings/SettingsContext';
 import { useTheme } from '@/theme';
 import { AcademicPeriodModal } from '@/components/AcademicPeriodModal';
+import { pickImage } from '@/attachments/files';
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -43,6 +44,7 @@ export default function ProfileScreen() {
   const [majorInput, setMajorInput] = useState(currentUser?.major || '');
   const [instInput, setInstInput] = useState(currentUser?.institution || '');
   const [colorInput, setColorInput] = useState(currentUser?.avatar_color || '#4F46E5');
+  const [avatarUri, setAvatarUri] = useState<string | null>(currentUser?.avatar_uri || null);
 
   // Goals edit modal
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -60,6 +62,7 @@ export default function ProfileScreen() {
       major: majorInput.trim(),
       institution: instInput.trim(),
       avatar_color: colorInput,
+      avatar_uri: avatarUri,
     });
     updateSetting('nickname', nameInput.trim());
     setShowEditModal(false);
@@ -124,12 +127,20 @@ export default function ProfileScreen() {
           <View
             style={[
               styles.avatarLarge,
-              { backgroundColor: currentUser?.avatar_color || theme.primary },
+              { backgroundColor: currentUser?.avatar_color || theme.primary, overflow: 'hidden' },
             ]}
           >
-            <Text style={styles.avatarInitials}>
-              {(currentUser?.name || 'S')[0].toUpperCase()}
-            </Text>
+            {currentUser?.avatar_uri ? (
+              <Image
+                source={{ uri: currentUser.avatar_uri }}
+                style={styles.avatarPhoto}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.avatarInitials}>
+                {(currentUser?.name || 'S')[0].toUpperCase()}
+              </Text>
+            )}
           </View>
 
           <View style={styles.profileInfoCol}>
@@ -154,6 +165,7 @@ export default function ProfileScreen() {
               setMajorInput(currentUser?.major || '');
               setInstInput(currentUser?.institution || '');
               setColorInput(currentUser?.avatar_color || '#4F46E5');
+              setAvatarUri(currentUser?.avatar_uri || null);
               setShowEditModal(true);
             }}
           >
@@ -374,6 +386,49 @@ export default function ProfileScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Profile Picture</Text>
+              <View style={styles.avatarPickerRow}>
+                <View
+                  style={[
+                    styles.avatarPreview,
+                    { backgroundColor: colorInput, overflow: 'hidden' },
+                  ]}
+                >
+                  {avatarUri ? (
+                    <Image
+                      source={{ uri: avatarUri }}
+                      style={styles.avatarPhoto}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text style={styles.avatarInitials}>
+                      {(nameInput || 'S')[0].toUpperCase()}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={[styles.avatarPickerBtn, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}
+                  onPress={async () => {
+                    const uri = await pickImage();
+                    if (uri) setAvatarUri(uri);
+                  }}
+                >
+                  <Ionicons name="camera-outline" size={18} color={theme.primary} />
+                  <Text style={[styles.avatarPickerText, { color: theme.primary }]}>
+                    {avatarUri ? 'Change Photo' : 'Add Photo'}
+                  </Text>
+                </TouchableOpacity>
+                {avatarUri ? (
+                  <TouchableOpacity
+                    style={styles.removeAvatarBtn}
+                    onPress={() => setAvatarUri(null)}
+                    accessibilityLabel="Remove profile picture"
+                  >
+                    <Ionicons name="close-circle" size={22} color={theme.danger} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
               <Text style={[styles.inputLabel, { color: theme.text }]}>Student Name *</Text>
               <TextInput
                 style={[styles.formInput, { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
@@ -534,7 +589,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarPhoto: { width: '100%', height: '100%' },
   avatarInitials: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
+  avatarPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  avatarPreview: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  avatarPickerText: { fontSize: 14, fontWeight: '700' },
+  removeAvatarBtn: { padding: 4 },
   profileInfoCol: { flex: 1, gap: 4 },
   profileName: { fontSize: 18, fontWeight: '800' },
   profileEmail: { fontSize: 13 },

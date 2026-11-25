@@ -406,13 +406,21 @@ export default function DashboardScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.avatarCircle, { backgroundColor: currentUser?.avatar_color || theme.primary }]}
+            style={[styles.avatarCircle, { backgroundColor: currentUser?.avatar_color || theme.primary, overflow: 'hidden' }]}
             onPress={() => router.push('/profile' as Href)}
             accessibilityLabel="Go to Profile"
           >
-            <Text style={styles.avatarInitials}>
-              {(currentUser?.name || 'S')[0].toUpperCase()}
-            </Text>
+            {currentUser?.avatar_uri ? (
+              <Image
+                source={{ uri: currentUser.avatar_uri }}
+                style={styles.avatarPhoto}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.avatarInitials}>
+                {(currentUser?.name || 'S')[0].toUpperCase()}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -1679,6 +1687,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarPhoto: { width: '100%', height: '100%' },
   avatarInitials: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
 
   // Hero card

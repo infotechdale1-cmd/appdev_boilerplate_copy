@@ -1,12 +1,9 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Animated,
-  Image,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,8 +19,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { StudyProvider } from '@/context/StudyContext';
 import { useTheme } from '@/theme';
 
-const SPLASH_BG = require('../../assets/images/app-icon.jpg');
-const SPLASH_LOGO = require('../../assets/images/mascot-transparent.png');
+const SPLASH_ICON = require('../../assets/images/mascot-transparent.png');
 
 export default function RootLayout() {
   const theme = useTheme();
@@ -101,17 +97,14 @@ function AppSplashAnimation({
   onDone: () => void;
   isReady?: boolean;
 }) {
-  const bgOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.72)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const auraScale = useRef(new Animated.Value(0.85)).current;
-  const auraOpacity = useRef(new Animated.Value(0)).current;
-  const overlayOpacity = useRef(new Animated.Value(1)).current;
+  const [iconOpacity] = useState(() => new Animated.Value(0));
+  const [iconScale] = useState(() => new Animated.Value(0.92));
+  const [overlayOpacity] = useState(() => new Animated.Value(1));
   const isReadyRef = useRef(isReady);
   const hasFinishedIntro = useRef(false);
   const isDismissing = useRef(false);
 
-  const dismiss = () => {
+  const dismiss = useCallback(() => {
     if (isDismissing.current) return;
     isDismissing.current = true;
     Animated.timing(overlayOpacity, {
@@ -121,83 +114,52 @@ function AppSplashAnimation({
     }).start(() => {
       onDone();
     });
-  };
-
-  const handleSkip = () => {
-    if (isReadyRef.current) {
-      dismiss();
-    }
-  };
+  }, [onDone, overlayOpacity]);
 
   useEffect(() => {
     isReadyRef.current = isReady;
     if (isReady && hasFinishedIntro.current && !isDismissing.current) {
       dismiss();
     }
-  }, [isReady]);
+  }, [dismiss, isReady]);
 
   useEffect(() => {
-    // 1. Background image fades in smoothly
-    Animated.timing(bgOpacity, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-
-    // 2. Logo entrance with spring bounce, pulsing aura ring, and title reveal
     Animated.parallel([
-      Animated.spring(logoScale, { toValue: 1, friction: 5.5, tension: 50, useNativeDriver: true }),
-      Animated.timing(logoOpacity, { toValue: 1, duration: 450, useNativeDriver: true }),
-      Animated.sequence([
-        Animated.timing(auraOpacity, { toValue: 0.85, duration: 350, useNativeDriver: true }),
-        Animated.parallel([
-          Animated.timing(auraScale, { toValue: 1.5, duration: 900, useNativeDriver: true }),
-          Animated.timing(auraOpacity, { toValue: 0, duration: 900, useNativeDriver: true }),
-        ]),
-      ]),
-    ]).start(() => {
+      Animated.timing(iconOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.spring(iconScale, {
+        toValue: 1,
+        speed: 10,
+        bounciness: 5,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    let dismissTimer: ReturnType<typeof setTimeout> | undefined;
+    const introTimer = setTimeout(() => {
       hasFinishedIntro.current = true;
       if (isReadyRef.current) {
-        setTimeout(dismiss, 800);
+        dismissTimer = setTimeout(dismiss, 800);
       }
-    });
-  }, []);
+    }, 400);
+    return () => {
+      clearTimeout(introTimer);
+      if (dismissTimer) clearTimeout(dismissTimer);
+    };
+  }, [dismiss, iconOpacity, iconScale]);
 
   return (
     <Animated.View style={[styles.splashScreen, { opacity: overlayOpacity }]}>
-      {/* Background image */}
       <Animated.Image
-        source={SPLASH_BG}
-        style={[StyleSheet.absoluteFill, { opacity: bgOpacity }]}
-        resizeMode="cover"
+        source={SPLASH_ICON}
+        style={[
+          styles.splashIcon,
+          {
+            opacity: iconOpacity,
+            transform: [{ scale: iconScale }],
+          },
+        ]}
+        resizeMode="contain"
       />
-      {/* Dim overlay for contrast */}
-      <View style={styles.splashDimOverlay} />
-
-      <Pressable style={styles.splashPressable} onPress={handleSkip}>
-        {/* Pulsing Aura Ring */}
-        <Animated.View
-          style={[
-            styles.splashAuraRing,
-            {
-              opacity: auraOpacity,
-              transform: [{ scale: auraScale }],
-            },
-          ]}
-        />
-
-        {/* Transparent Logo */}
-        <Animated.View
-          style={[
-            styles.splashLogoWrap,
-            {
-              opacity: logoOpacity,
-              transform: [{ scale: logoScale }],
-            },
-          ]}
-        >
-          <Image source={SPLASH_LOGO} style={styles.splashLogo} resizeMode="contain" />
-        </Animated.View>
-
-        {/* Tap to skip hint */}
-        <Text style={styles.skipHintText}>Tap anywhere to skip</Text>
-      </Pressable>
     </Animated.View>
   );
 }
@@ -299,51 +261,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 9999,
-  },
-  splashDimOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-  },
-  splashPressable: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
+    backgroundColor: '#CEC7ED',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
   },
-  splashAuraRing: {
-    position: 'absolute',
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    borderWidth: 3,
-    borderColor: '#6366F1',
-  },
-  splashLogoWrap: {
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  splashLogo: {
-    width: 140,
-    height: 140,
-  },
-  skipHintText: {
-    position: 'absolute',
-    bottom: 40,
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 0.3,
-  },
+  splashIcon: { width: 220, height: 220 },
 });

@@ -20,7 +20,7 @@ import { useTheme } from '@/theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const ONBOARDING_LOGO = require('../../assets/images/app-icon-transparent.png');
+const ONBOARDING_LOGO = require('../../assets/images/mascot-transparent.png');
 
 const SLIDES: { icon: IconName; title: string; subtitle: string }[] = [
   {
@@ -43,20 +43,15 @@ const SLIDES: { icon: IconName; title: string; subtitle: string }[] = [
 export default function OnboardingScreen() {
   const theme = useTheme();
   const { update } = useSettings();
-  const { login, register, guestLogin } = useAuth();
+  const { guestLogin } = useAuth();
   const { width, height } = useWindowDimensions();
   const isWideLayout = width >= 820;
 
   const [slideIndex, setSlideIndex] = useState(0);
-  const [authMode, setAuthMode] = useState<'walkthrough' | 'login' | 'register'>('walkthrough');
+  const [authMode, setAuthMode] = useState<'walkthrough' | 'setup'>('walkthrough');
 
   // Form states
   const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [major, setMajor] = useState('');
-  const [institution, setInstitution] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -64,73 +59,22 @@ export default function OnboardingScreen() {
     if (slideIndex < SLIDES.length - 1) {
       setSlideIndex(slideIndex + 1);
     } else {
-      setAuthMode('login');
+      setAuthMode('setup');
     }
   };
 
-  const handleLogin = async () => {
-    setErrorMessage('');
-    if (!username.trim() || !password.trim()) {
-      setErrorMessage('Please enter both username and password.');
-      return;
-    }
-
-    setSubmitting(true);
-    const res = await login(username, password);
-    setSubmitting(false);
-
-    if (res.success) {
-      update('onboarded', true);
-      update('nickname', username.trim());
-    } else {
-      setErrorMessage(res.error || 'Failed to sign in.');
-    }
-  };
-
-  const handleRegister = async () => {
+  const handleSetup = async () => {
     setErrorMessage('');
     if (!name.trim()) {
-      setErrorMessage('Please enter your full name.');
-      return;
-    }
-    if (!/^[a-zA-Z0-9._-]{3,30}$/.test(username.trim())) {
-      setErrorMessage('Username must be 3–30 characters and use only letters, numbers, dots, underscores, or hyphens.');
-      return;
-    }
-    if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Please enter a valid email address.');
-      return;
-    }
-    if (password.length < 4) {
-      setErrorMessage('Password must be at least 4 characters long.');
+      setErrorMessage('Please enter your name.');
       return;
     }
 
     setSubmitting(true);
-    const res = await register({
-      name: name.trim(),
-      username: username.trim(),
-      email: email.trim(),
-      password,
-      major: major.trim() || 'Computer Science',
-      institution: institution.trim() || 'University',
-    });
-    setSubmitting(false);
-
-    if (res.success) {
-      update('onboarded', true);
-      update('nickname', name.trim());
-    } else {
-      setErrorMessage(res.error || 'Registration failed.');
-    }
-  };
-
-  const handleGuestAccess = async () => {
-    setSubmitting(true);
-    await guestLogin();
+    await guestLogin(name.trim());
     setSubmitting(false);
     update('onboarded', true);
-    update('nickname', 'Alex');
+    update('nickname', name.trim());
   };
 
   return (
@@ -140,135 +84,130 @@ export default function OnboardingScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, isWideLayout && styles.scrollContentWide]}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
           {authMode === 'walkthrough' ? (
             /* Intro Carousel */
-            <View style={[styles.walkthroughContainer, isWideLayout && styles.wideContent]}>
+            <View
+              style={[
+                styles.walkthroughContainer,
+                isWideLayout && styles.walkthroughContainerWide,
+              ]}
+            >
               <View
                 style={[
                   styles.onboardingHero,
-                  { height: Math.min(360, Math.max(300, height * 0.4)) },
+                  isWideLayout && styles.onboardingHeroWide,
+                  {
+                    height: isWideLayout
+                      ? Math.min(520, Math.max(320, height * 0.58))
+                      : Math.min(360, Math.max(220, height * 0.36)),
+                  },
                 ]}
               >
                 <View
-                  style={[
-                    styles.onboardingHeroBackground,
-                    { backgroundColor: theme.background },
-                  ]}
+                  style={styles.onboardingHeroBackground}
                 >
                   <Image source={ONBOARDING_LOGO} style={styles.onboardingHeroLogo} resizeMode="contain" />
                 </View>
               </View>
 
-              <View style={[styles.slideCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <View style={[styles.slideIconWrap, { backgroundColor: theme.primaryLight }]}>
-                  <Ionicons name={SLIDES[slideIndex].icon} size={48} color={theme.primary} />
+              <View
+                style={[
+                  styles.walkthroughDetails,
+                  isWideLayout && styles.walkthroughDetailsWide,
+                ]}
+              >
+                <View style={[styles.slideCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <View style={[styles.slideIconWrap, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons name={SLIDES[slideIndex].icon} size={48} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.slideTitle, { color: theme.text }]}>
+                    {SLIDES[slideIndex].title}
+                  </Text>
+                  <Text style={[styles.slideSubtitle, { color: theme.textSecondary }]}>
+                    {SLIDES[slideIndex].subtitle}
+                  </Text>
+
+                  {/* Dot pagination */}
+                  <View style={styles.dotsRow}>
+                    {SLIDES.map((_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.dot,
+                          {
+                            backgroundColor: i === slideIndex ? theme.primary : theme.border,
+                            width: i === slideIndex ? 24 : 8,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
                 </View>
-                <Text style={[styles.slideTitle, { color: theme.text }]}>
-                  {SLIDES[slideIndex].title}
-                </Text>
-                <Text style={[styles.slideSubtitle, { color: theme.textSecondary }]}>
-                  {SLIDES[slideIndex].subtitle}
-                </Text>
 
-                {/* Dot pagination */}
-                <View style={styles.dotsRow}>
-                  {SLIDES.map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.dot,
-                        {
-                          backgroundColor: i === slideIndex ? theme.primary : theme.border,
-                          width: i === slideIndex ? 24 : 8,
-                        },
-                      ]}
-                    />
-                  ))}
+                {/* Navigation buttons */}
+                <View style={styles.actionButtonsCol}>
+                  <TouchableOpacity
+                    style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
+                    onPress={handleNextSlide}
+                  >
+                    <Text style={styles.primaryBtnText}>
+                      {slideIndex < SLIDES.length - 1 ? 'Continue' : 'Get Started'}
+                    </Text>
+                    <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+
                 </View>
-              </View>
-
-              {/* Navigation buttons */}
-              <View style={styles.actionButtonsCol}>
-                <TouchableOpacity
-                  style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
-                  onPress={handleNextSlide}
-                >
-                  <Text style={styles.primaryBtnText}>
-                    {slideIndex < SLIDES.length - 1 ? 'Continue' : 'Get Started'}
-                  </Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.ghostBtn, { borderColor: theme.border }]}
-                  onPress={handleGuestAccess}
-                >
-                  <Ionicons name="flash-outline" size={18} color={theme.text} />
-                  <Text style={[styles.ghostBtnText, { color: theme.text }]}>
-                    Explore Demo as Guest
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.linkBtn}
-                  onPress={() => setAuthMode('login')}
-                >
-                  <Text style={[styles.linkBtnText, { color: theme.primary }]}>
-                    Already have an account? Sign In
-                  </Text>
-                </TouchableOpacity>
               </View>
             </View>
           ) : (
-            /* Auth Forms: Login / Register */
-            <View style={[styles.authCard, isWideLayout && styles.wideContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              {/* Tab Selector */}
-              <View style={[styles.tabSelector, { backgroundColor: theme.cardAlt }]}>
-                <TouchableOpacity
-                  style={[
-                    styles.tabItem,
-                    authMode === 'login' && { backgroundColor: theme.card, shadowOpacity: 0.1 },
-                  ]}
-                  onPress={() => {
-                    setAuthMode('login');
-                    setErrorMessage('');
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.tabItemText,
-                      { color: authMode === 'login' ? theme.primary : theme.textSecondary },
-                    ]}
-                  >
-                    Sign In
-                  </Text>
-                </TouchableOpacity>
+            /* Quick Setup */
+            <View
+              style={[
+                styles.setupCard,
+                isWideLayout && styles.setupCardWide,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
+              <View
+                style={[
+                  styles.setupIcon,
+                  { borderColor: theme.primary, backgroundColor: theme.primaryLight },
+                ]}
+              >
+                <Ionicons name="person" size={24} color={theme.primary} />
+              </View>
+              <Text style={[styles.setupTitle, { color: theme.text }]}>Quick Setup</Text>
+              <Text style={[styles.setupSubtitle, { color: theme.textSecondary }]}>
+                Personalize your studyTrack experience
+              </Text>
 
-                <TouchableOpacity
-                  style={[
-                    styles.tabItem,
-                    authMode === 'register' && { backgroundColor: theme.card, shadowOpacity: 0.1 },
-                  ]}
-                  onPress={() => {
-                    setAuthMode('register');
-                    setErrorMessage('');
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.tabItemText,
-                      { color: authMode === 'register' ? theme.primary : theme.textSecondary },
-                    ]}
-                  >
-                    Create Account
+              <View style={styles.setupForm}>
+                <Text style={[styles.inputLabel, { color: theme.text }]}>YOUR NAME</Text>
+                <View style={[styles.setupInputWrap, { borderColor: theme.primary }]}>
+                  <Ionicons name="person-outline" size={18} color={theme.primary} />
+                  <TextInput
+                    style={[styles.setupInput, { color: theme.text }]}
+                    placeholder="Enter your name"
+                    placeholderTextColor={theme.textTertiary}
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                    onSubmitEditing={handleSetup}
+                  />
+                </View>
+
+                <View style={[styles.setupInfo, { backgroundColor: theme.primaryLight }]}>
+                  <Ionicons name="information-circle" size={18} color={theme.primary} />
+                  <Text style={[styles.setupInfoText, { color: theme.primary }]}>
+                    Your data stays on your device.{'\n'}No account or password needed.
                   </Text>
-                </TouchableOpacity>
+                </View>
               </View>
 
-              {/* Error notice */}
               {errorMessage ? (
                 <View style={[styles.errorBox, { backgroundColor: theme.danger + '18' }]}>
                   <Ionicons name="alert-circle" size={18} color={theme.danger} />
@@ -276,160 +215,21 @@ export default function OnboardingScreen() {
                 </View>
               ) : null}
 
-              {/* Form Fields */}
-              {authMode === 'register' && (
-                <>
-                  <View style={styles.inputGroup}>
-                    <Text style={[styles.inputLabel, { color: theme.text }]}>Full Name</Text>
-                    <TextInput
-                      style={[
-                        styles.inputField,
-                        {
-                          backgroundColor: theme.inputBackground,
-                          color: theme.text,
-                          borderColor: theme.border,
-                        },
-                      ]}
-                      placeholder="e.g. Alex Rivera"
-                      placeholderTextColor={theme.textTertiary}
-                      value={name}
-                      onChangeText={setName}
-                      autoCapitalize="words"
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={[styles.inputLabel, { color: theme.text }]}>Username</Text>
-                    <TextInput
-                      style={[
-                        styles.inputField,
-                        {
-                          backgroundColor: theme.inputBackground,
-                          color: theme.text,
-                          borderColor: theme.border,
-                        },
-                      ]}
-                      placeholder="e.g. alexrivera"
-                      placeholderTextColor={theme.textTertiary}
-                      value={username}
-                      onChangeText={setUsername}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={[styles.inputLabel, { color: theme.text }]}>Major / Degree</Text>
-                    <TextInput
-                      style={[
-                        styles.inputField,
-                        {
-                          backgroundColor: theme.inputBackground,
-                          color: theme.text,
-                          borderColor: theme.border,
-                        },
-                      ]}
-                      placeholder="e.g. Computer Science & Engineering"
-                      placeholderTextColor={theme.textTertiary}
-                      value={major}
-                      onChangeText={setMajor}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={[styles.inputLabel, { color: theme.text }]}>School / College</Text>
-                    <TextInput
-                      style={[
-                        styles.inputField,
-                        {
-                          backgroundColor: theme.inputBackground,
-                          color: theme.text,
-                          borderColor: theme.border,
-                        },
-                      ]}
-                      placeholder="e.g. State University"
-                      placeholderTextColor={theme.textTertiary}
-                      value={institution}
-                      onChangeText={setInstitution}
-                    />
-                  </View>
-                </>
-              )}
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>
-                  {authMode === 'login' ? 'Username or Email' : 'Email Address'}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.inputField,
-                    {
-                      backgroundColor: theme.inputBackground,
-                      color: theme.text,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                  placeholder={authMode === 'login' ? 'Your username' : 'student@university.edu'}
-                  placeholderTextColor={theme.textTertiary}
-                  value={authMode === 'login' ? username : email}
-                  onChangeText={authMode === 'login' ? setUsername : setEmail}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType={authMode === 'login' ? 'default' : 'email-address'}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>Password</Text>
-                <TextInput
-                  style={[
-                    styles.inputField,
-                    {
-                      backgroundColor: theme.inputBackground,
-                      color: theme.text,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                  placeholder="Enter your password"
-                  placeholderTextColor={theme.textTertiary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-
-              {/* Submit Button */}
               <TouchableOpacity
                 style={[
                   styles.primaryBtn,
-                  { backgroundColor: theme.primary, marginTop: 12 },
+                  styles.setupButton,
+                  { backgroundColor: theme.primary },
                   submitting && { opacity: 0.7 },
                 ]}
-                onPress={authMode === 'login' ? handleLogin : handleRegister}
+                onPress={handleSetup}
                 disabled={submitting}
               >
                 {submitting ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <>
-                    <Text style={styles.primaryBtnText}>
-                      {authMode === 'login' ? 'Sign In' : 'Create My Account'}
-                    </Text>
-                    <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-                  </>
+                  <Text style={styles.primaryBtnText}>Get Started</Text>
                 )}
-              </TouchableOpacity>
-
-              {/* Guest Login */}
-              <TouchableOpacity
-                style={[styles.guestAltBtn, { backgroundColor: theme.cardAlt }]}
-                onPress={handleGuestAccess}
-                disabled={submitting}
-              >
-                <Ionicons name="flash" size={16} color={theme.primary} />
-                <Text style={[styles.guestAltBtnText, { color: theme.primary }]}>
-                  Continue with Demo Account (Alex Rivera)
-                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -453,29 +253,30 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   scrollContent: {
+    width: '100%',
+    maxWidth: 1120,
+    alignSelf: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
     flexGrow: 1,
     justifyContent: 'center',
   },
-  scrollContentWide: {
+  walkthroughContainer: {
+    gap: 20,
+  },
+  walkthroughContainerWide: {
     width: '100%',
-    maxWidth: 1120,
-    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 40,
-  },
-  wideContent: {
-    flex: 1,
-  },
-  walkthroughContainer: {
-    gap: 20,
   },
   onboardingHero: {
     width: '100%',
     borderRadius: 24,
     overflow: 'hidden',
+  },
+  onboardingHeroWide: {
+    flex: 1,
   },
   onboardingHeroBackground: {
     flex: 1,
@@ -483,8 +284,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   onboardingHeroLogo: {
-    width: '55%',
-    height: '55%',
+    width: 220,
+    height: 220,
+  },
+  walkthroughDetails: {
+    gap: 20,
+  },
+  walkthroughDetailsWide: {
+    flex: 1,
+    maxWidth: 520,
   },
   slideCard: {
     borderRadius: 24,
@@ -646,5 +454,69 @@ const styles = StyleSheet.create({
   backToSlidesText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  setupCard: {
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    alignItems: 'center',
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+  },
+  setupCardWide: {
+    maxWidth: 620,
+  },
+  setupIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  setupTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  setupSubtitle: {
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  setupForm: {
+    width: '100%',
+  },
+  setupInputWrap: {
+    height: 52,
+    borderWidth: 1,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  setupInput: {
+    flex: 1,
+    fontSize: 15,
+  },
+  setupInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 12,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  setupInfoText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  setupButton: {
+    width: '100%',
+    marginTop: 20,
   },
 });

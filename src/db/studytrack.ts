@@ -9,6 +9,7 @@ export interface User {
   major: string;
   institution: string;
   avatar_color: string;
+  avatar_uri: string | null;
   created_at: number;
 }
 
@@ -135,6 +136,7 @@ export async function createUser(data: {
   major?: string;
   institution?: string;
   avatar_color?: string;
+  avatar_uri?: string | null;
 }): Promise<User> {
   const db = await getDb();
   const id = newId();
@@ -150,8 +152,8 @@ export async function createUser(data: {
   }
 
   await db.runAsync(
-    `INSERT INTO users (id, email, username, name, password_hash, major, institution, avatar_color, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (id, email, username, name, password_hash, major, institution, avatar_color, avatar_uri, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.email.toLowerCase().trim(),
@@ -161,6 +163,7 @@ export async function createUser(data: {
       data.major || 'Computer Science',
       data.institution || 'University',
       avatarColor,
+      data.avatar_uri || null,
       now,
     ]
   );
@@ -181,6 +184,7 @@ export async function createUser(data: {
     major: data.major || 'Computer Science',
     institution: data.institution || 'University',
     avatar_color: avatarColor,
+    avatar_uri: data.avatar_uri || null,
     created_at: now,
   };
 }
@@ -221,7 +225,7 @@ export async function getUserById(id: string): Promise<User | null> {
 
 export async function updateUserProfile(
   userId: string,
-  data: Partial<Pick<User, 'name' | 'major' | 'institution' | 'avatar_color'>>
+  data: Partial<Pick<User, 'name' | 'major' | 'institution' | 'avatar_color' | 'avatar_uri'>>
 ): Promise<void> {
   const db = await getDb();
   const updates: string[] = [];
@@ -242,6 +246,10 @@ export async function updateUserProfile(
   if (data.avatar_color !== undefined) {
     updates.push('avatar_color = ?');
     params.push(data.avatar_color);
+  }
+  if (data.avatar_uri !== undefined) {
+    updates.push('avatar_uri = ?');
+    params.push(data.avatar_uri);
   }
 
   if (updates.length > 0) {

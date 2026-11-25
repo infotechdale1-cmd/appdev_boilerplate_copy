@@ -26,9 +26,9 @@ interface AuthContextType {
     major?: string;
     institution?: string;
   }) => Promise<{ success: boolean; error?: string }>;
-  guestLogin: () => Promise<void>;
+  guestLogin: (name?: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (data: Partial<Pick<User, 'name' | 'major' | 'institution' | 'avatar_color'>>) => Promise<void>;
+  updateUser: (data: Partial<Pick<User, 'name' | 'major' | 'institution' | 'avatar_color' | 'avatar_uri'>>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -159,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const guestLogin = async (): Promise<void> => {
+  const guestLogin = async (name?: string): Promise<void> => {
     try {
       // Find or create default student guest account
       const guestEmail = 'student@studytrack.app';
@@ -168,12 +168,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user = await createUser({
           email: guestEmail,
           username: 'student_guest',
-          name: 'Alex Rivera',
+          name: name?.trim() || 'Alex Rivera',
           password: 'studytrackdemo',
           major: 'Software Engineering',
           institution: 'Tech University',
           avatar_color: '#4F46E5',
         });
+      } else if (name?.trim()) {
+        await updateUserProfile(user.id, { name: name.trim() });
+        user = { ...user, name: name.trim() };
       }
       await seedDemoDataIfEmpty(user.id);
       await setStoredSession(user.id);
@@ -189,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateUser = async (
-    data: Partial<Pick<User, 'name' | 'major' | 'institution' | 'avatar_color'>>
+    data: Partial<Pick<User, 'name' | 'major' | 'institution' | 'avatar_color' | 'avatar_uri'>>
   ): Promise<void> => {
     if (!currentUser) return;
     await updateUserProfile(currentUser.id, data);
