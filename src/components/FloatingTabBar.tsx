@@ -19,20 +19,23 @@ const SEPARATE_ROUTE = 'chat';
  * create `src/app/(tabs)/<name>.tsx`, add a <Tabs.Screen> for it in
  * `src/app/(tabs)/_layout.tsx`, then remove its entry here.
  */
-const PLACEHOLDER_TABS: { label: string; icon: IconName }[] = [
-  { label: 'Feature', icon: 'add-circle-outline' },
-  { label: 'Feature', icon: 'add-circle-outline' },
-  { label: 'Feature', icon: 'add-circle-outline' },
-];
+const PLACEHOLDER_TABS: { label: string; icon: IconName }[] = [];
 
 /** Floating pill tab bar with a separate round Chat button (Apple-style). */
-export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) {
+export function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: TabBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   const go = (route: (typeof state.routes)[number], focused: boolean) => {
-    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-    if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+    const event = emitter?.emit?.({
+      type: 'tabPress',
+      target: route.key,
+      canPreventDefault: true,
+    }) ?? { defaultPrevented: false };
+
+    if (!focused && !event.defaultPrevented) {
+      navigateToTab(route.key);
+    }
   };
   const icon = (route: (typeof state.routes)[number], focused: boolean, size: number) =>
     descriptors[route.key].options.tabBarIcon?.({
@@ -53,7 +56,12 @@ export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) 
     >
       <View style={[styles.pill, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {state.routes
-          .filter((r) => r.name !== SEPARATE_ROUTE)
+          .filter(
+            (r) =>
+              r.name !== SEPARATE_ROUTE &&
+              r.name !== 'calendar' &&
+              (descriptors[r.key].options as any)?.href !== null
+          )
           .map((route) => {
             const focused = state.routes[state.index]?.key === route.key;
             const { title } = descriptors[route.key].options;
@@ -66,8 +74,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) 
                 accessibilityState={{ selected: focused }}
                 style={[styles.item, focused ? { backgroundColor: theme.buttonPrimary, borderRadius: TAB_BAR_HEIGHT / 2 } : undefined]}
               >
-                {icon(route, focused, 25)}
-                <Text style={[styles.label, { color: focused ? '#FFFFFF' : theme.textSecondary }]}>
+                {icon(route, focused, 22)}
+                <Text style={[styles.label, { color: focused ? '#FFFFFF' : theme.textSecondary }]} numberOfLines={1}>
                   {title ?? route.name}
                 </Text>
               </SmoothPressable>
@@ -123,9 +131,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     ...shadow(),
   },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, marginVertical: 4 },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, marginVertical: 3 },
   placeholder: { opacity: 1 },
-  label: { fontSize: 12, fontWeight: '500' },
+  label: { fontSize: 10.5, fontWeight: '600' },
 });
 
 function shadow() {
