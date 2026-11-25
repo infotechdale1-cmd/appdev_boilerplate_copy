@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useStudy } from '@/context/StudyContext';
 import { useTheme } from '@/theme';
+import { formatTime12Hour } from '@/utils/time';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -314,7 +315,7 @@ export default function CalendarScreen() {
                     {task.title}
                   </Text>
                   <Text style={[styles.agendaSubTitle, { color: theme.textSecondary }]}>
-                    {subject ? `${subject.code} • ` : ''}Due at {task.due_time || '23:59'}
+                    {subject ? `${subject.code} • ` : ''}Due at {formatTime12Hour(task.due_time || '23:59')}
                   </Text>
                 </View>
 

@@ -190,6 +190,12 @@ const MIGRATIONS: string[] = [
   CREATE INDEX IF NOT EXISTS idx_tasks_period ON tasks (period_id);
   `,
   `
+  ALTER TABLE study_sessions ADD COLUMN period_id TEXT;
+  CREATE INDEX IF NOT EXISTS idx_study_sessions_period ON study_sessions (period_id);
+  CREATE INDEX IF NOT EXISTS idx_assessments_period ON assessments (period_id);
+  CREATE INDEX IF NOT EXISTS idx_subjects_period ON subjects (period_id);
+  `,
+  `
   ALTER TABLE users ADD COLUMN username TEXT;
   UPDATE users SET username = lower(substr(email, 1, instr(email, '@') - 1))
     WHERE username IS NULL OR username = '';

@@ -17,6 +17,7 @@ import { useStudy } from '@/context/StudyContext';
 import { useTheme } from '@/theme';
 import type { ScheduleItem, Subject } from '@/db/studytrack';
 import { confirmAction, showSuccess } from '@/utils/confirm';
+import { formatTime12Hour } from '@/utils/time';
 
 const WEEKDAYS = [
   { day: 1, label: 'Mon' },
@@ -724,7 +725,7 @@ export default function ScheduleScreen() {
                         )}
                         {t.due_time && (
                           <Text style={[styles.taskTimeTag, { color: theme.textSecondary }]}>
-                            Due at {t.due_time}
+                            Due at {formatTime12Hour(t.due_time)}
                           </Text>
                         )}
                       </View>
@@ -1078,7 +1079,7 @@ export default function ScheduleScreen() {
                   <View style={styles.taskInfo}>
                     <Text style={[styles.taskTitle, { color: theme.text }]}>{t.title}</Text>
                     <Text style={[styles.taskTimeTag, { color: theme.textSecondary }]}>
-                      Due: {t.due_time || 'End of day'}
+                      Due: {t.due_time ? formatTime12Hour(t.due_time) : 'End of day'}
                     </Text>
                   </View>
                 </View>

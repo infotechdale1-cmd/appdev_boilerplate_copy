@@ -14,6 +14,7 @@ import {
 import { useStudy } from '@/context/StudyContext';
 import { useTheme } from '@/theme';
 import { confirmAction, showSuccess } from '@/utils/confirm';
+import { formatTime12Hour, normalizeTime24Hour } from '@/utils/time';
 import type { Task } from '@/db/studytrack';
 
 type FilterType = 'all' | 'pending' | 'completed' | 'high';
@@ -95,7 +96,7 @@ export default function TasksScreen() {
     setFormDesc('');
     setFormSubjectId(subjects[0]?.id || '');
     setFormDueDate(new Date().toISOString().split('T')[0]);
-    setFormDueTime('18:00');
+    setFormDueTime('6:00 PM');
     setFormPriority('medium');
     setFormEstimated('45');
     setModalVisible(true);
@@ -166,7 +167,7 @@ export default function TasksScreen() {
     setFormDesc(task.description || '');
     setFormSubjectId(task.subject_id || '');
     setFormDueDate(task.due_date);
-    setFormDueTime(task.due_time || '23:59');
+    setFormDueTime(formatTime12Hour(task.due_time || '23:59'));
     setFormPriority(task.priority);
     setFormEstimated((task.estimated_minutes || 45).toString());
     setModalVisible(true);
@@ -181,7 +182,7 @@ export default function TasksScreen() {
         description: formDesc.trim(),
         subject_id: formSubjectId || undefined,
         due_date: formDueDate,
-        due_time: formDueTime,
+        due_time: normalizeTime24Hour(formDueTime),
         priority: formPriority,
         estimated_minutes: parseInt(formEstimated, 10) || 45,
       });
@@ -191,7 +192,7 @@ export default function TasksScreen() {
         description: formDesc.trim(),
         subject_id: formSubjectId || undefined,
         due_date: formDueDate,
-        due_time: formDueTime,
+        due_time: normalizeTime24Hour(formDueTime),
         priority: formPriority,
         estimated_minutes: parseInt(formEstimated, 10) || 45,
       });
@@ -607,7 +608,7 @@ export default function TasksScreen() {
                     <View style={styles.dueWrap}>
                       <Ionicons name="calendar-outline" size={13} color={theme.textSecondary} />
                       <Text style={[styles.dueLabel, { color: theme.textSecondary }]}>
-                        {task.due_date} {task.due_time ? `• ${task.due_time}` : ''}
+                        {task.due_date} {task.due_time ? `• ${formatTime12Hour(task.due_time)}` : ''}
                       </Text>
                     </View>
 
@@ -799,7 +800,7 @@ export default function TasksScreen() {
                       styles.formInput,
                       { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border },
                     ]}
-                    placeholder="HH:mm"
+                    placeholder="hh:mm AM/PM"
                     placeholderTextColor={theme.textTertiary}
                     value={formDueTime}
                     onChangeText={setFormDueTime}

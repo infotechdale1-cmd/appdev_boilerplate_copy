@@ -100,6 +100,7 @@ export interface StudySession {
   id: string;
   user_id: string;
   subject_id?: string;
+  period_id?: string;
   duration_seconds: number;
   session_date: string; // YYYY-MM-DD
   notes?: string;
@@ -470,6 +471,16 @@ export async function createAcademicPeriod(data: {
   is_active?: boolean;
 }): Promise<AcademicPeriod> {
   const db = await getDb();
+  const semester = data.semester.trim();
+  const academicYear = data.academic_year.trim();
+  const existing = await db.getFirstAsync<{ id: string }>(
+    `SELECT id FROM academic_periods
+     WHERE user_id = ? AND lower(trim(semester)) = lower(?) AND lower(trim(academic_year)) = lower(?)
+     LIMIT 1`,
+    [data.user_id, semester, academicYear]
+  );
+  if (existing) throw new Error('This academic period already exists.');
+
   const id = newId();
   const now = Date.now();
   const isActive = data.is_active ? 1 : 0;
@@ -482,14 +493,14 @@ export async function createAcademicPeriod(data: {
   await db.runAsync(
     `INSERT INTO academic_periods (id, user_id, semester, academic_year, is_active, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [id, data.user_id, data.semester.trim(), data.academic_year.trim(), isActive, now]
+    [id, data.user_id, semester, academicYear, isActive, now]
   );
 
   return {
     id,
     user_id: data.user_id,
-    semester: data.semester.trim(),
-    academic_year: data.academic_year.trim(),
+    semester,
+    academic_year: academicYear,
     is_active: isActive,
     created_at: now,
   };
@@ -503,7 +514,24 @@ export async function setActiveAcademicPeriod(userId: string, periodId: string):
 
 export async function deleteAcademicPeriod(userId: string, periodId: string): Promise<void> {
   const db = await getDb();
+  await db.runAsync(`DELETE FROM assessments WHERE user_id = ? AND period_id = ?`, [userId, periodId]);
+  await db.runAsync(`DELETE FROM tasks WHERE user_id = ? AND period_id = ?`, [userId, periodId]);
+  await db.runAsync(`DELETE FROM schedules WHERE user_id = ? AND period_id = ?`, [userId, periodId]);
+  await db.runAsync(`DELETE FROM study_sessions WHERE user_id = ? AND period_id = ?`, [userId, periodId]);
+  await db.runAsync(`DELETE FROM subjects WHERE user_id = ? AND period_id = ?`, [userId, periodId]);
   await db.runAsync(`DELETE FROM academic_periods WHERE id = ? AND user_id = ?`, [periodId, userId]);
+}
+
+export async function backfillPeriodData(userId: string, periodId: string): Promise<void> {
+  const db = await getDb();
+  const tables = ['subjects', 'assessments', 'tasks', 'schedules', 'study_sessions'];
+
+  for (const table of tables) {
+    await db.runAsync(
+      `UPDATE ${table} SET period_id = ? WHERE user_id = ? AND (period_id IS NULL OR period_id = '')`,
+      [periodId, userId]
+    );
+  }
 }
 
 // -------------------------------------------------------------
@@ -920,6 +948,7 @@ export async function deleteSchedule(id: string, userId: string): Promise<void> 
 export async function logStudySession(data: {
   user_id: string;
   subject_id?: string;
+  period_id?: string;
   duration_seconds: number;
   session_date?: string;
   notes?: string;
@@ -930,12 +959,13 @@ export async function logStudySession(data: {
   const sessionDate = data.session_date || new Date().toISOString().split('T')[0];
 
   await db.runAsync(
-    `INSERT INTO study_sessions (id, user_id, subject_id, duration_seconds, session_date, notes, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO study_sessions (id, user_id, subject_id, period_id, duration_seconds, session_date, notes, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.user_id,
       data.subject_id || null,
+      data.period_id || null,
       data.duration_seconds,
       sessionDate,
       data.notes || '',
@@ -947,6 +977,7 @@ export async function logStudySession(data: {
     id,
     user_id: data.user_id,
     subject_id: data.subject_id,
+    period_id: data.period_id,
     duration_seconds: data.duration_seconds,
     session_date: sessionDate,
     notes: data.notes,
@@ -954,8 +985,14 @@ export async function logStudySession(data: {
   };
 }
 
-export async function getStudySessions(userId: string): Promise<StudySession[]> {
+export async function getStudySessions(userId: string, periodId?: string): Promise<StudySession[]> {
   const db = await getDb();
+  if (periodId) {
+    return db.getAllAsync<StudySession>(
+      `SELECT * FROM study_sessions WHERE user_id = ? AND period_id = ? ORDER BY session_date DESC, created_at DESC`,
+      [userId, periodId]
+    );
+  }
   return db.getAllAsync<StudySession>(
     `SELECT * FROM study_sessions WHERE user_id = ? ORDER BY session_date DESC, created_at DESC`,
     [userId]

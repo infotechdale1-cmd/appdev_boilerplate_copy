@@ -50,8 +50,13 @@ export function AcademicPeriodModal({ visible, onClose }: AcademicPeriodModalPro
       await createPeriod(semester.trim(), academicYear.trim(), true);
       setIsCreating(false);
       onClose();
-    } catch {
-      Alert.alert('Error', 'Failed to create academic period.');
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        error instanceof Error && error.message === 'This academic period already exists.'
+          ? 'This semester and academic year already exists.'
+          : 'Failed to create academic period.'
+      );
     }
   };
 
@@ -61,7 +66,7 @@ export function AcademicPeriodModal({ visible, onClose }: AcademicPeriodModalPro
         void removePeriod(id);
       }
     } else {
-      Alert.alert('Delete Academic Period', `Delete "${name}"? Associated subjects will remain in database.`, [
+      Alert.alert('Delete Academic Period', `Delete "${name}" and all of its subjects, tasks, grades, schedules, and study sessions?`, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => void removePeriod(id) },
       ]);

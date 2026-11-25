@@ -25,6 +25,7 @@ import { useSettings } from '@/settings/SettingsContext';
 import type { FocusAlarmSound } from '@/settings/storage';
 import { useTheme } from '@/theme';
 import ProgressRing from '@/components/ProgressRing';
+import { formatTime12Hour, normalizeTime24Hour } from '@/utils/time';
 
 const TIMER_PRESETS = [
   { label: '25 min', seconds: 25 * 60 },
@@ -79,7 +80,7 @@ export default function DashboardScreen() {
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskSubjectId, setNewTaskSubjectId] = useState(subjects[0]?.id || '');
   const [newTaskDueDate, setNewTaskDueDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newTaskDueTime, setNewTaskDueTime] = useState('18:00');
+  const [newTaskDueTime, setNewTaskDueTime] = useState('6:00 PM');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
 
   // New subject form with percentages
@@ -280,7 +281,7 @@ export default function DashboardScreen() {
       description: newTaskDesc.trim(),
       subject_id: newTaskSubjectId || undefined,
       due_date: newTaskDueDate,
-      due_time: newTaskDueTime,
+      due_time: normalizeTime24Hour(newTaskDueTime),
       priority: newTaskPriority,
       estimated_minutes: 45,
     });
@@ -632,7 +633,7 @@ export default function DashboardScreen() {
                     )}
                     <Ionicons name="time-outline" size={12} color={theme.textSecondary} />
                     <Text style={[styles.dueText, { color: theme.textSecondary }]}>
-                      {task.due_date} · {task.due_time || '23:59'}
+                      {task.due_date} · {formatTime12Hour(task.due_time || '23:59')}
                     </Text>
                   </View>
                 </View>
@@ -889,7 +890,7 @@ export default function DashboardScreen() {
                     ]}
                     value={newTaskDueTime}
                     onChangeText={setNewTaskDueTime}
-                    placeholder="HH:MM"
+                    placeholder="hh:mm AM/PM"
                     placeholderTextColor={theme.textTertiary}
                   />
                 </View>

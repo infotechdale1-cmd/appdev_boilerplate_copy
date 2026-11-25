@@ -28,6 +28,7 @@ import {
   createAcademicPeriod as dbCreateAcademicPeriod,
   setActiveAcademicPeriod as dbSetActiveAcademicPeriod,
   deleteAcademicPeriod as dbDeleteAcademicPeriod,
+  backfillPeriodData,
   getAssessments,
   addAssessment as dbAddAssessment,
   updateAssessment as dbUpdateAssessment,
@@ -202,9 +203,12 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
       setAcademicPeriods(periods);
       setActivePeriodState(activeP);
+      if (activeP) {
+        await backfillPeriodData(currentUser.id, activeP.id);
+      }
 
       const [sessions, notifs, gls] = await Promise.all([
-        getStudySessions(currentUser.id),
+        getStudySessions(currentUser.id, activeP?.id),
         getNotifications(currentUser.id),
         getStudyGoals(currentUser.id),
       ]);
@@ -268,9 +272,12 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         if (!isMounted) return;
         setAcademicPeriods(periods);
         setActivePeriodState(activeP);
+        if (activeP) {
+          await backfillPeriodData(currentUser.id, activeP.id);
+        }
 
         const [sessions, notifs, gls] = await Promise.all([
-          getStudySessions(currentUser.id),
+          getStudySessions(currentUser.id, activeP?.id),
           getNotifications(currentUser.id),
           getStudyGoals(currentUser.id),
         ]);
@@ -331,16 +338,18 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       prev.map((p) => ({ ...p, is_active: p.id === periodId ? 1 : 0 }))
     );
 
-    const [subs, ts, scs, allAssessments] = await Promise.all([
+    const [subs, ts, scs, allAssessments, sessions] = await Promise.all([
       getSubjects(currentUser.id, periodId),
       getTasks(currentUser.id, periodId),
       getSchedules(currentUser.id, periodId),
       getAssessments(currentUser.id, undefined, periodId),
+      getStudySessions(currentUser.id, periodId),
     ]);
     setSubjects(subs);
     setTasks(ts);
     setSchedules(scs);
     setAssessments(allAssessments);
+    setStudySessions(sessions);
   };
 
   const createPeriod = async (semester: string, academicYear: string, isActive = true) => {
@@ -361,6 +370,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       setTasks([]);
       setSchedules([]);
       setAssessments([]);
+      setStudySessions([]);
     }
     return created;
   };
@@ -375,6 +385,11 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         await switchAcademicPeriod(remaining[0].id);
       } else {
         setActivePeriodState(null);
+        setSubjects([]);
+        setTasks([]);
+        setSchedules([]);
+        setAssessments([]);
+        setStudySessions([]);
       }
     }
   };
@@ -771,6 +786,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const session = await logStudySession({
       user_id: currentUser.id,
       subject_id: subjectId,
+      period_id: activePeriod?.id,
       duration_seconds: durationSeconds,
       session_date: todayStr,
       notes,
